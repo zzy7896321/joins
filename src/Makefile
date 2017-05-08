@@ -1,5 +1,5 @@
 SHELL=/bin/bash
-CXX=g++ -std=gnu++14 -g
+CXX=g++ -std=gnu++14 -O2
 CXXFLAGS=-pthread -I../tpie/build.release/install/include -L../tpie/build.release/install/lib -I../include
 LDFLAGS=-ltpie -lboost_system -lboost_filesystem
 

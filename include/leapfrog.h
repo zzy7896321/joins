@@ -70,7 +70,8 @@ struct lf_join {
         }
 
         bool atEnd() const noexcept {
-            for (lf_key_size_type i = 0; i <= m_key_id; ++i) {
+            if (m_iter_ref->m_iter == m_btree->end()) return true;
+            for (lf_key_size_type i = 0; i < m_key_id; ++i) {
                 if (reinterpret_cast<const attr_type *>(&*(m_iter_ref->m_iter))[i] != 
                     reinterpret_cast<const attr_type *>(&m_base_value)[i]) return true;
             }
@@ -86,9 +87,10 @@ struct lf_join {
         }
 
         void open() {
-            if (m_next_iter_info) {
-                m_next_iter_info->m_base_value = *(m_iter_ref->m_iter);
+            if (!m_prev_iter_info) {
+                m_iter_ref->m_iter = m_btree->begin();
             }
+            m_base_value = *(m_iter_ref->m_iter);
         }
 
         void up() {
@@ -262,10 +264,10 @@ private:
                 --depth;
             } else {
                 if (depth + 1 == m_iterinfo.size()) {
-                    for (lf_key_size_type i = 1; i < m_iterinfo.size(); ++i) {
+                    /*for (lf_key_size_type i = 1; i < m_iterinfo.size(); ++i) {
                         std::cout << m_iterinfo[i][0]->key() << ' ';
                     }
-                    std::cout << std::endl;
+                    std::cout << std::endl; */
                     ++m_count;
                 } else {
                     ++depth;
