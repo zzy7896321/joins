@@ -60,6 +60,18 @@ struct dictionary_t {
     }
 };
 
+string::size_type find_matching_quote(const string& line, string::size_type p) {
+    while (p < line.length()) {
+        if (line[p] == '"') return p;
+        if (line[p] == '\\') {
+            ++p;
+            if (p == line.length()) return string::npos;
+        }
+        ++p;
+    }
+    return string::npos;
+}
+
 bool parse_turtle(const string &line, tuple<string, string, string> &tuple) {
     auto p1 = line.find('<'); 
     if (p1 == string::npos) return false;
@@ -72,10 +84,10 @@ bool parse_turtle(const string &line, tuple<string, string, string> &tuple) {
     auto p5 = line.find_first_of("<\"", p4 + 1);
     if (p5 == string::npos) return false;
     auto p6 = (line[p5] == '<') ? line.find('>', p5 + 1) :
-        line.find('"', p5 + 1);
+        find_matching_quote(line, p5 + 1);
     if (p6 == string::npos) return false;
-    auto p7 = line.find('.', p6 + 1);
-    if (p7 == string::npos || p7 + 1 != line.length()) return false;
+    //auto p7 = line.find('.', p6 + 1);
+    //if (p7 == string::npos || p7 + 1 != line.length()) return false;
     tuple = make_tuple(line.substr(p1, p2 - p1 + 1),
             line.substr(p3, p4 - p3 + 1),
             line.substr(p5, p6 - p5 + 1));
@@ -85,6 +97,7 @@ bool parse_turtle(const string &line, tuple<string, string, string> &tuple) {
 bool load_dictionary(string data_dir, dictionary_t &out_dict) {
     dictionary_t dict;
     
+    cerr << "loading dictionary..." << endl;
     ifstream dict_file(data_dir + "/dictionary.txt");
     if (!dict_file.good()) return false;
     string line;
@@ -103,6 +116,7 @@ bool load_dictionary(string data_dir, dictionary_t &out_dict) {
 bool create_dictionary(string data_dir, dictionary_t &out_dict) {
     dictionary_t dict;
     
+    cerr << "creating dictionary..." << endl;
     ifstream file_list(data_dir + "/file_list.txt");
     if (!file_list.good()) return false;
     string file_name;
@@ -115,7 +129,10 @@ bool create_dictionary(string data_dir, dictionary_t &out_dict) {
             decltype(turtle.length()) p = 0;
             while (p < turtle.length() && turtle[p] == ' ') ++p;
             if (p == turtle.length() || turtle[p] == '#') continue;
-            if (!parse_turtle(turtle, spo)) return false;
+            if (!parse_turtle(turtle, spo)) {
+                cerr << turtle << endl;
+                return false;
+            }
             dict.add(get<0>(spo)).add(get<1>(spo)).add(get<2>(spo));        
         }
     }
@@ -188,16 +205,20 @@ bool create_partitioned_tables(string data_dir, const dictionary_t &dict) {
     out.write(make_pair(get<1>(triple), get<2>(triple)));
     outr.open(data_dir + "/" + to_string(predicates.back()) + "r.dat", tpie::access_write);
     outr.write(make_pair(get<2>(triple), get<1>(triple)));
+    cerr << predicates.back() << " begins scan" << endl; 
+
     while (in.can_read()) {
         triple = in.read();
         attr_type predicate = get<0>(triple);
         if (predicate != predicates.back()) {
+            cerr << predicates.back() << " ends scan" << endl; 
             out.close();
             tpie::sort(outr, outr);
             outr.close();
             predicates.push_back(predicate);
             out.open(data_dir + "/" + to_string(predicates.back()) + ".dat", tpie::access_write);
             outr.open(data_dir + "/" + to_string(predicates.back()) + "r.dat", tpie::access_write);
+            cerr << predicates.back() << " starts scan" << endl; 
         }
         out.write(make_pair(get<1>(triple), get<2>(triple)));
         outr.write(make_pair(get<2>(triple), get<1>(triple)));
@@ -305,11 +326,13 @@ int main(int argc, char *argv[]) {
     dictionary_t dict;
     if (!load_or_create_dictionary(data_dir, dict)) {
         cout << "[ERROR] load dictionary" << endl;
+        tpie::tpie_finish();
         return 1;
     }
 
     if (!check_or_transform_turtle(data_dir, dict)) {
         cout << "[ERROR] transform turtle" << endl;
+        tpie::tpie_finish();
         return 1;
     }
 
